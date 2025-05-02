@@ -1,0 +1,16 @@
+{
+  "scripts": {
+    "test": "vitest"
+  },
+  "name": "formulemagique",
+  "version": "1.0.0",
+  "description": "register operators and functions, parse and interpret formulas",
+  "main": "index.js",
+  "devDependencies": {
+    "@types/node": "^22.15.3",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.2"
+  },
+  "author": "Raphaël Seguin",
+  "license": "ISC"
+}
