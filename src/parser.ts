@@ -26,7 +26,7 @@ type ParseTree = Token & {
 export class Parsing {
   constructor() {}
   do(tokens: Token[]): ParseTree {
-    return this.parse(tokens)[0];
+    return this.parse(tokens)[0]!;
   }
   private parse(tokens: ParseTree[]): ParseTree[] {
     if (tokens.every((token) => this.isLeaf(token))) {
@@ -48,7 +48,7 @@ export class Parsing {
       (token) => token.type === "operation"
     );
     const leftOperand = tokens.slice(0, operationIndex);
-    const operation = tokens[operationIndex];
+    const operation = tokens[operationIndex]!;
     const rightOperand = tokens.slice(operationIndex + 1, tokens.length);
     operation.children = [
       ...this.parse(leftOperand),
@@ -57,15 +57,15 @@ export class Parsing {
     return operation;
   }
   private parseFunction(tokens: ParseTree[]): ParseTree {
-    const value = tokens[0].value as Function["value"];
+    const value = tokens[0]!.value as Function["value"];
     const functionArguments = this.removeOutterParens(tokens.slice(1));
-
+    const children = this.splitArguments(functionArguments).map(
+      (tokens) => this.parse(tokens)[0]!
+    );
     return {
       type: "function",
       value,
-      children: this.splitArguments(functionArguments).map(
-        (tokens) => this.parse(tokens)[0]
-      ),
+      children,
     };
   }
   private splitArguments(tokens: Token[]): Token[][] {
@@ -137,6 +137,15 @@ export class Interpretor {
     if (!Object.keys(this.context).includes(value)) {
       throw new Error(`Variable ${value} undefined in context`);
     }
+    if (!this.context[value]) {
+      throw new Error(
+        `Value ${value} undefined in context ${JSON.stringify(
+          this.context,
+          null,
+          4
+        )}`
+      );
+    }
     return this.context[value];
   }
   private interpretFunction({
@@ -154,6 +163,12 @@ export class Interpretor {
     children = [],
   }: Operation & { children?: ParseTree[] }): string | number {
     const [leftOperand, rightOperand] = children;
+    if (!leftOperand) {
+      throw new Error(`Missing left operand in operation ${value}`)
+    }
+    if (!rightOperand) {
+      throw new Error(`Missing right operand in operation ${value}`)
+    }
     return value === "+"
       ? this.add(leftOperand, rightOperand)
       : value === "-"
@@ -164,6 +179,15 @@ export class Interpretor {
   }
   private replace(...args: ParseTree[]): string {
     const [source, target, replacement] = args;
+    if(!source) {
+      throw new Error('Source is missing in function replace')
+    }
+    if(!target) {
+      throw new Error('Target is missing in function replace')
+    }
+    if(!replacement) {
+      throw new Error('Replacement is missing in function replace')
+    }
     return `${this.execute(source)}`.replaceAll(
       `${this.execute(target)}`,
       `${this.execute(replacement)}`

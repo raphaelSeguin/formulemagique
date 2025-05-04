@@ -1,16 +1,31 @@
 {
   "scripts": {
-    "test": "vitest"
+    "test": "vitest",
+    "build": "tsc"
   },
   "name": "formulemagique",
   "version": "1.0.0",
   "description": "register operators and functions, parse and interpret formulas",
-  "main": "index.js",
+  "main": "lib/index.js",
   "devDependencies": {
     "@types/node": "^22.15.3",
     "typescript": "^5.8.3",
     "vitest": "^3.1.2"
   },
   "author": "Raphaël Seguin",
-  "license": "ISC"
+  "license": "ISC",
+  "directories": {
+    "lib": "lib"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/raphaelSeguin/formulemagique.git"
+  },
+  "keywords": [
+    "dsl"
+  ],
+  "bugs": {
+    "url": "https://github.com/raphaelSeguin/formulemagique/issues"
+  },
+  "homepage": "https://github.com/raphaelSeguin/formulemagique#readme"
 }

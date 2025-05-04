@@ -4,7 +4,6 @@ import { Interpretor, Parsing, type Token } from "./parser";
 describe("Parsing and interpreting", () => {
   describe("Parsing", () => {
     test("Parsing instantiates ", () => {
-      const parsing = new Parsing();
       expect(() => new Parsing()).not.toThrow();
     });
     test("Parse constant A", () => {
