@@ -4,7 +4,7 @@
     "build": "tsc"
   },
   "name": "formulemagique",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "register operators and functions, parse and interpret formulas",
   "main": "lib/index.js",
   "devDependencies": {
