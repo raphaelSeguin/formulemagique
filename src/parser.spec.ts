@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { Interpretor, Parsing, type Token } from "./parser";
+import { Interpretor, Operation, Parsing, type Token } from "./parser";
 
 describe("Parsing and interpreting", () => {
   describe("Parsing", () => {
@@ -85,6 +85,26 @@ describe("Parsing and interpreting", () => {
       });
     });
   });
+  describe("Parsing errors", () => {
+    test.each([
+      [[{ type: "operation", value: "+" }] as Token[]],
+      [
+        [
+          { type: "constant", value: 1 },
+          { type: "operation", value: "-" },
+        ] as Token[],
+      ],
+      [
+        [
+          { type: "operation", value: "/" },
+          { type: "constant", value: 0 },
+        ] as Token[],
+      ],
+    ])(`operation without required operands`, (tokens: Token[]) => {
+      const parsing = new Parsing();
+      expect(() => parsing.do(tokens)).toThrow();
+    });
+  });
   describe("Interpreting", () => {
     test("constant yields same value", () => {
       const result = new Interpretor({}).execute({
@@ -114,7 +134,8 @@ describe("Parsing and interpreting", () => {
           { type: "variable", value: "b", children: [] },
         ],
       });
-      expect(result).toStrictEqual(444);
+      //www.ratatype.fr/typing-test/fr_new/
+      https: expect(result).toStrictEqual(444);
     });
     test("function concat on variables", () => {
       const result = new Interpretor({ a: "hello", b: " world" }).execute({
@@ -168,28 +189,28 @@ describe("Parsing and interpreting", () => {
       });
       expect(result).toStrictEqual("L'âge du capitaine est : 46");
     });
-  })
-  describe('End to end', () => {
-    test('Concat variable and replace', () => {
+  });
+  describe("Parse and interpret", () => {
+    test("Concat variable and replace", () => {
       const formula: Token[] = [
-          { type: "function", value: "replace" },
-          { type: "punctuation", value: "(" },
-          { type: "function", value: "concat" },
-          { type: "punctuation", value: "(" },
-          { type: "variable", value: "a" },
-          { type: "punctuation", value: "," },
-          { type: "variable", value: "b" },
-          { type: "punctuation", value: ")" },
-          { type: "punctuation", value: "," },
-          { type: "constant", value: "Morceau" },
-          { type: "punctuation", value: "," },
-          { type: "constant", value: "Bout" },
-          { type: "punctuation", value: ")" },
-        ]
-      const parsed = new Parsing().do(formula)
-      const context = {a: "Marabout, ", b: "Morceau de ficelle"}
-      const result = new Interpretor(context).execute(parsed)
-      expect(result).toStrictEqual("Marabout, Bout de ficelle")
-    })
-  })
+        { type: "function", value: "replace" },
+        { type: "punctuation", value: "(" },
+        { type: "function", value: "concat" },
+        { type: "punctuation", value: "(" },
+        { type: "variable", value: "a" },
+        { type: "punctuation", value: "," },
+        { type: "variable", value: "b" },
+        { type: "punctuation", value: ")" },
+        { type: "punctuation", value: "," },
+        { type: "constant", value: "Morceau" },
+        { type: "punctuation", value: "," },
+        { type: "constant", value: "Bout" },
+        { type: "punctuation", value: ")" },
+      ];
+      const parsed = new Parsing().do(formula);
+      const context = { a: "Marabout, ", b: "Morceau de ficelle" };
+      const result = new Interpretor(context).execute(parsed);
+      expect(result).toStrictEqual("Marabout, Bout de ficelle");
+    });
+  });
 });

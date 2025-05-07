@@ -1,25 +1,25 @@
 export type Token = Function | Constant | Punctuation | Operation | Variable;
-type Function = {
+export type Function = {
   type: "function";
   value: "add" | "concat" | "replace";
 };
-type Constant = {
+export type Constant = {
   type: "constant";
   value: number | string;
 };
-type Punctuation = {
+export type Punctuation = {
   type: "punctuation";
   value: "," | "(" | ")";
 };
-type Operation = {
+export type Operation = {
   type: "operation";
   value: "+" | "-" | "*" | "/";
 };
-type Variable = {
+export type Variable = {
   type: "variable";
   value: string;
 };
-type ParseTree = Token & {
+export type ParseTree = Token & {
   children?: ParseTree[];
 };
 
@@ -50,6 +50,9 @@ export class Parsing {
     const leftOperand = tokens.slice(0, operationIndex);
     const operation = tokens[operationIndex]!;
     const rightOperand = tokens.slice(operationIndex + 1, tokens.length);
+    if (!rightOperand.length || !leftOperand.length) {
+      throw new Error(`Operations erquire two operands`)
+    }
     operation.children = [
       ...this.parse(leftOperand),
       ...this.parse(rightOperand),
