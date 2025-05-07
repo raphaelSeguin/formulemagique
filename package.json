@@ -7,6 +7,7 @@
   "version": "1.0.1",
   "description": "register operators and functions, parse and interpret formulas",
   "main": "lib/index.js",
+  "types": "lib/parser.d.ts",
   "devDependencies": {
     "@types/node": "^22.15.3",
     "typescript": "^5.8.3",
