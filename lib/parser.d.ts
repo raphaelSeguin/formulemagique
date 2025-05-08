@@ -26,18 +26,18 @@ export declare class Parsing {
     constructor();
     do(tokens: Token[]): ParseTree;
     private parse;
-    private isLeaf;
     private parseOperation;
     private parseFunction;
     private splitArguments;
     private removeOutterParens;
     private isOperation;
+    private findOperationIndex;
     private isFunction;
 }
 export declare class Interpretor {
-    private readonly context;
-    constructor(context: Record<string, number | string>);
-    execute(parseTree: ParseTree): number | string;
+    private context;
+    evaluate(parseTree: ParseTree, context?: Record<string, number | string>): string | number;
+    private execute;
     private interpretConstant;
     private interpretVariable;
     private interpretFunction;
@@ -49,3 +49,15 @@ export declare class Interpretor {
     private subtract;
     private add;
 }
+type Status = {
+    isValid: boolean;
+    comment?: string;
+};
+export declare class FormuleMagique {
+    private readonly parsing;
+    private readonly interpretor;
+    private constructor();
+    validate(formula: Token[]): Status;
+    evaluate(formula: Token[], context: Record<string, number | string>): number | string;
+}
+export {};

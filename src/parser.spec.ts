@@ -1,5 +1,11 @@
 import { describe, expect, test } from "vitest";
-import { Interpretor, Operation, Parsing, type Token } from "./parser";
+import {
+  Interpretor,
+  Operation,
+  ParseTree,
+  Parsing,
+  type Token,
+} from "./parser";
 
 describe("Parsing and interpreting", () => {
   describe("Parsing", () => {
@@ -140,60 +146,68 @@ describe("Parsing and interpreting", () => {
   });
   describe("Interpreting", () => {
     test("constant yields same value", () => {
-      const result = new Interpretor({}).execute({
+      const formula: ParseTree = {
         type: "constant",
         value: "my value",
         children: [],
-      });
+      }
+      const result = new Interpretor().evaluate(formula);
       expect(result).toStrictEqual("my value");
     });
     test("addition of two constants", () => {
-      const result = new Interpretor({}).execute({
+      const formula: ParseTree = {
         type: "operation",
         value: "+",
         children: [
           { type: "constant", value: 12, children: [] },
           { type: "constant", value: "34", children: [] },
         ],
-      });
+      }
+      const result = new Interpretor().evaluate(formula);
       expect(result).toStrictEqual(46);
     });
     test("addition of two variables", () => {
-      const result = new Interpretor({ a: 123, b: 321 }).execute({
+      const context = { a: 123, b: 321 }
+      const formula: ParseTree = {
         type: "operation",
         value: "+",
         children: [
           { type: "variable", value: "a", children: [] },
           { type: "variable", value: "b", children: [] },
         ],
-      });
-      //www.ratatype.fr/typing-test/fr_new/
-      https: expect(result).toStrictEqual(444);
+      }
+      const result = new Interpretor().evaluate(formula, context);
+      expect(result).toStrictEqual(444);
     });
     test("function concat on variables", () => {
-      const result = new Interpretor({ a: "hello", b: " world" }).execute({
+      const context = { a: "hello", b: " world" };
+      const formula: ParseTree = {
         type: "function",
         value: "concat",
         children: [
           { type: "variable", value: "a", children: [] },
           { type: "variable", value: "b", children: [] },
         ],
-      });
+      };
+      const result = new Interpretor().evaluate(formula, context);
       expect(result).toStrictEqual("hello world");
     });
     test("function concat on variables", () => {
-      const result = new Interpretor({ a: "hello", b: " world" }).execute({
+      const context = { a: "hello", b: " world" };
+      const formula: ParseTree = {
         type: "function",
         value: "concat",
         children: [
           { type: "variable", value: "a", children: [] },
           { type: "variable", value: "b", children: [] },
         ],
-      });
+      };
+      const result = new Interpretor().evaluate(formula, context);
       expect(result).toStrictEqual("hello world");
     });
     test("concat operations (nesting)", () => {
-      const result = new Interpretor({ a: 12, b: 34 }).execute({
+      const context = { a: 12, b: 34 };
+      const formula: ParseTree = {
         type: "function",
         value: "concat",
         children: [
@@ -219,7 +233,8 @@ describe("Parsing and interpreting", () => {
             ],
           },
         ],
-      });
+      };
+      const result = new Interpretor().evaluate(formula, context);
       expect(result).toStrictEqual("L'âge du capitaine est : 46");
     });
   });
@@ -261,8 +276,8 @@ describe("Parsing and interpreting", () => {
       "Simple operations",
       ({ formula, result }) => {
         expect(
-          new Interpretor({}).execute(new Parsing().do(formula))
-        ).toStrictEqual(result);
+          new Interpretor().evaluate(new Parsing().do(formula))
+        ).toStrictEqual(result);      
       }
     );
     describe("Operations with parenthesis", () => {
@@ -280,7 +295,8 @@ describe("Parsing and interpreting", () => {
           result: 32,
         },
         {
-          formula: [ // (6 * 7) - (((10 / 2) + 6) - 1)
+          formula: [
+            // (6 * 7) - (((10 / 2) + 6) - 1)
             { type: "punctuation", value: "(" },
             { type: "constant", value: 6 },
             { type: "operation", value: "*" },
@@ -307,7 +323,7 @@ describe("Parsing and interpreting", () => {
         "Operations with parenthesis",
         ({ formula, result }) => {
           expect(
-            new Interpretor({}).execute(new Parsing().do(formula))
+            new Interpretor().evaluate(new Parsing().do(formula))
           ).toStrictEqual(result);
         }
       );
@@ -330,7 +346,7 @@ describe("Parsing and interpreting", () => {
       ];
       const parsed = new Parsing().do(formula);
       const context = { a: "Marabout, ", b: "Morceau de ficelle" };
-      const result = new Interpretor(context).execute(parsed);
+      const result = new Interpretor().evaluate(parsed, context);
       expect(result).toStrictEqual("Marabout, Bout de ficelle");
     });
   });

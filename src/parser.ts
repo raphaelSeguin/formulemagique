@@ -152,8 +152,15 @@ export class Parsing {
 }
 
 export class Interpretor {
-  constructor(private readonly context: Record<string, number | string>) {}
-  execute(parseTree: ParseTree): number | string {
+  private context: Record<string, number | string> = {};
+  evaluate(
+    parseTree: ParseTree,
+    context: Record<string, number | string> = {}
+  ) {
+    this.context = context;
+    return this.execute(parseTree);
+  }
+  private execute(parseTree: ParseTree): number | string {
     return parseTree.type === "operation"
       ? this.interpretOperation(parseTree)
       : parseTree.type === "function"
@@ -253,5 +260,36 @@ export class Interpretor {
     return (
       Number(this.execute(leftOperand)) + Number(this.execute(rightOperand))
     );
+  }
+}
+
+type Status = {
+  isValid: boolean;
+  comment?: string;
+};
+
+export class FormuleMagique {
+  private constructor(
+    private readonly parsing: Parsing,
+    private readonly interpretor: Interpretor
+  ) {}
+  validate(formula: Token[]): Status {
+    try {
+      this.parsing.do(formula);
+      return {
+        isValid: true,
+      };
+    } catch {
+      return {
+        isValid: false,
+        comment: "Empty formula is not valid",
+      };
+    }
+  }
+  evaluate(
+    formula: Token[],
+    context: Record<string, number | string>
+  ): number | string {
+    return this.interpretor.evaluate(this.parsing.do(formula), context);
   }
 }
