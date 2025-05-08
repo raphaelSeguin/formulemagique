@@ -1,3 +1,5 @@
+import { enumerate } from "./utilities";
+
 export type Token = Function | Constant | Punctuation | Operation | Variable;
 export type Function = {
   type: "function";
@@ -26,32 +28,49 @@ export type ParseTree = Token & {
 export class Parsing {
   constructor() {}
   do(tokens: Token[]): ParseTree {
-    return this.parse(tokens)[0]!;
+    const result = this.parse(tokens);
+    if (result.length !== 1 || result[0] === undefined) {
+      throw new Error("Parsing Error");
+    }
+    return result[0];
   }
   private parse(tokens: ParseTree[]): ParseTree[] {
-    if (tokens.every((token) => this.isLeaf(token))) {
-      return tokens;
-    }
     if (this.isOperation(tokens)) {
       return [this.parseOperation(tokens)];
     }
     if (this.isFunction(tokens)) {
       return [this.parseFunction(tokens)];
     }
-    throw new Error("not goood");
+    // refactor
+    if (tokens[0]?.type === "constant" && tokens[1]?.type === "constant") {
+      throw new Error("Parsing Error");
+    }
+    if (tokens[0]?.type === "constant" && tokens[1]?.type === "punctuation") {
+      throw new Error("Parsing Error");
+    }
+    return tokens;
   }
-  private isLeaf(token: Token): boolean {
-    return ["constant", "variable"].includes(token.type);
-  }
+  // private isLeaf(token: Token): boolean {
+  //   return ["constant", "variable"].includes(token.type);
+  // }
   private parseOperation(tokens: ParseTree[]): ParseTree {
-    const operationIndex = tokens.findIndex(
-      (token) => token.type === "operation"
+    const operationIndex = this.findOperationIndex(tokens);
+    const leftOperand = this.removeOutterParens(
+      tokens.slice(0, operationIndex)
     );
-    const leftOperand = tokens.slice(0, operationIndex);
     const operation = tokens[operationIndex]!;
-    const rightOperand = tokens.slice(operationIndex + 1, tokens.length);
+    const rightOperand = this.removeOutterParens(
+      tokens.slice(operationIndex + 1, tokens.length)
+    );
     if (!rightOperand.length || !leftOperand.length) {
-      throw new Error(`Operations erquire two operands`)
+      throw new Error(`Operations require two operands`);
+    }
+    if (
+      operation.value === "/" &&
+      rightOperand[0]?.type === "constant" &&
+      rightOperand[0].value === 0
+    ) {
+      throw new Error("Division by zero is not allowed");
     }
     operation.children = [
       ...this.parse(leftOperand),
@@ -92,6 +111,9 @@ export class Parsing {
       (lastIndex, token, index) => (token.value === ")" ? index : lastIndex),
       0
     );
+    if (openParenIndex === -1 || closeParenIndex === -1) {
+      return tokens;
+    }
     return tokens.filter(
       (_, i) => i !== openParenIndex && i !== closeParenIndex
     );
@@ -108,6 +130,19 @@ export class Parsing {
     }
     return false;
   }
+  private findOperationIndex(tokens: Token[]): number {
+    let parenLevel = 0;
+    for (const [index, { value, type }] of enumerate(tokens)) {
+      if (type === "punctuation") {
+        parenLevel += value === "(" ? 1 : -1;
+      }
+      if (parenLevel === 0 && type === "operation") {
+        return index;
+      }
+    }
+    return -1;
+  }
+
   private isFunction(tokens: Token[]): boolean {
     if (this.isOperation(tokens)) {
       return false;
@@ -167,10 +202,10 @@ export class Interpretor {
   }: Operation & { children?: ParseTree[] }): string | number {
     const [leftOperand, rightOperand] = children;
     if (!leftOperand) {
-      throw new Error(`Missing left operand in operation ${value}`)
+      throw new Error(`Missing left operand in operation ${value}`);
     }
     if (!rightOperand) {
-      throw new Error(`Missing right operand in operation ${value}`)
+      throw new Error(`Missing right operand in operation ${value}`);
     }
     return value === "+"
       ? this.add(leftOperand, rightOperand)
@@ -182,14 +217,14 @@ export class Interpretor {
   }
   private replace(...args: ParseTree[]): string {
     const [source, target, replacement] = args;
-    if(!source) {
-      throw new Error('Source is missing in function replace')
+    if (!source) {
+      throw new Error("Source is missing in function replace");
     }
-    if(!target) {
-      throw new Error('Target is missing in function replace')
+    if (!target) {
+      throw new Error("Target is missing in function replace");
     }
-    if(!replacement) {
-      throw new Error('Replacement is missing in function replace')
+    if (!replacement) {
+      throw new Error("Replacement is missing in function replace");
     }
     return `${this.execute(source)}`.replaceAll(
       `${this.execute(target)}`,

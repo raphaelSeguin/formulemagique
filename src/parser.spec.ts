@@ -87,23 +87,56 @@ describe("Parsing and interpreting", () => {
   });
   describe("Parsing errors", () => {
     test.each([
-      [[{ type: "operation", value: "+" }] as Token[]],
+      [{ type: "operation", value: "+" }],
       [
         [
           { type: "constant", value: 1 },
           { type: "operation", value: "-" },
-        ] as Token[],
+        ],
       ],
       [
         [
           { type: "operation", value: "/" },
           { type: "constant", value: 0 },
-        ] as Token[],
+        ],
       ],
-    ])(`operation without required operands`, (tokens: Token[]) => {
-      const parsing = new Parsing();
-      expect(() => parsing.do(tokens)).toThrow();
-    });
+      [
+        [
+          { type: "constant", value: 1 },
+          { type: "operation", value: "+" },
+          { type: "constant", value: 1 },
+          { type: "constant", value: 1 },
+        ],
+      ],
+      [
+        [
+          { type: "constant", value: 1 },
+          { type: "operation", value: "+" },
+          { type: "constant", value: 1 },
+          { type: "operation", value: "+" },
+        ],
+      ],
+      [
+        [
+          { type: "punctuation", value: "," },
+          { type: "constant", value: 1 },
+          { type: "operation", value: "+" },
+          { type: "constant", value: 1 },
+        ],
+      ],
+      [
+        [
+          { type: "constant", value: 1 },
+          { type: "operation", value: "/" },
+          { type: "constant", value: 0 },
+        ],
+      ],
+    ] as Token[][][])(
+      `operations with syntax errors throw errors`,
+      (tokens: Token[]) => {
+        expect(() => new Parsing().do(tokens)).toThrow();
+      }
+    );
   });
   describe("Interpreting", () => {
     test("constant yields same value", () => {
@@ -191,6 +224,94 @@ describe("Parsing and interpreting", () => {
     });
   });
   describe("Parse and interpret", () => {
+    test.each([
+      {
+        formula: [
+          { type: "constant", value: 1 },
+          { type: "operation", value: "+" },
+          { type: "constant", value: 1 },
+        ],
+        result: 2,
+      },
+      {
+        formula: [
+          { type: "constant", value: 6 },
+          { type: "operation", value: "*" },
+          { type: "constant", value: 6 },
+        ],
+        result: 36,
+      },
+      {
+        formula: [
+          { type: "constant", value: 72 },
+          { type: "operation", value: "/" },
+          { type: "constant", value: 9 },
+        ],
+        result: 8,
+      },
+      {
+        formula: [
+          { type: "constant", value: 42 },
+          { type: "operation", value: "-" },
+          { type: "constant", value: 11 },
+        ],
+        result: 31,
+      },
+    ] as { formula: Token[]; result: number }[])(
+      "Simple operations",
+      ({ formula, result }) => {
+        expect(
+          new Interpretor({}).execute(new Parsing().do(formula))
+        ).toStrictEqual(result);
+      }
+    );
+    describe("Operations with parenthesis", () => {
+      test.each([
+        {
+          formula: [
+            { type: "constant", value: 42 },
+            { type: "operation", value: "-" },
+            { type: "punctuation", value: "(" },
+            { type: "constant", value: 11 },
+            { type: "operation", value: "-" },
+            { type: "constant", value: 1 },
+            { type: "punctuation", value: ")" },
+          ],
+          result: 32,
+        },
+        {
+          formula: [ // (6 * 7) - (((10 / 2) + 6) - 1)
+            { type: "punctuation", value: "(" },
+            { type: "constant", value: 6 },
+            { type: "operation", value: "*" },
+            { type: "constant", value: 7 },
+            { type: "punctuation", value: ")" },
+            { type: "operation", value: "-" },
+            { type: "punctuation", value: "(" },
+            { type: "punctuation", value: "(" },
+            { type: "punctuation", value: "(" },
+            { type: "constant", value: 10 },
+            { type: "operation", value: "/" },
+            { type: "constant", value: 2 },
+            { type: "punctuation", value: ")" },
+            { type: "operation", value: "+" },
+            { type: "constant", value: 6 },
+            { type: "punctuation", value: ")" },
+            { type: "operation", value: "-" },
+            { type: "constant", value: 1 },
+            { type: "punctuation", value: ")" },
+          ],
+          result: 32,
+        },
+      ] as { formula: Token[]; result: number }[])(
+        "Operations with parenthesis",
+        ({ formula, result }) => {
+          expect(
+            new Interpretor({}).execute(new Parsing().do(formula))
+          ).toStrictEqual(result);
+        }
+      );
+    });
     test("Concat variable and replace", () => {
       const formula: Token[] = [
         { type: "function", value: "replace" },
