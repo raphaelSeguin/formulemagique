@@ -1,0 +1,1 @@
+export { FormuleMagique } from "./parser";
