@@ -13,18 +13,17 @@ A formula is essentially a list of tokens. Tokens are constants, variables, oper
 ### build a formula
 ```
 const formula: Token[] = [
-    { type: "constant", value: 42 },
-    { type: "operation", value: "-" },
-    { type: "punctuation", value: "(" },
-    { type: "constant", value: 11 },
-    { type: "operation", value: "-" },
-    { type: "constant", value: 1 },
-    { type: "punctuation", value: ")" },
+    constant(42),
+    operation("+"),
+    punctuation("("),
+    variable("A"),
+    operation("-"),
+    constant("1"),
+    punctuation(")"),
 ]
 ```
 ### validate a formula
 ```
-const formuleMagique = new FormuleMagique()
 formuleMagique.validate(formula) // { isValid: true}
 formuleMagique.validate(formula) // { isValid: false, comment: "invalid operation"}
 ```

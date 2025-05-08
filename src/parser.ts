@@ -1,7 +1,7 @@
 import { enumerate } from "./utilities";
 
-export type Token = Function | Constant | Punctuation | Operation | Variable;
-export type Function = {
+export type Token = Func | Constant | Punctuation | Operation | Variable;
+export type Func = {
   type: "function";
   value: "add" | "concat" | "replace";
 };
@@ -24,6 +24,13 @@ export type Variable = {
 export type ParseTree = Token & {
   children?: ParseTree[];
 };
+
+export const constant = (value: Constant['value']): Constant => ({type: "constant", value})
+export const func = (value: Func['value']): Func => ({type: "function", value})
+export const punctutation = (value: Punctuation['value']): Punctuation => ({type: "punctuation", value})
+export const operation = (value: Operation['value']): Operation => ({type: "operation", value})
+export const variable = (value: Variable['value']): Variable => ({type: "variable", value})
+
 
 export class Parsing {
   constructor() {}
@@ -79,7 +86,7 @@ export class Parsing {
     return operation;
   }
   private parseFunction(tokens: ParseTree[]): ParseTree {
-    const value = tokens[0]!.value as Function["value"];
+    const value = tokens[0]!.value as Func["value"];
     const functionArguments = this.removeOutterParens(tokens.slice(1));
     const children = this.splitArguments(functionArguments).map(
       (tokens) => this.parse(tokens)[0]!
@@ -196,7 +203,7 @@ export class Interpretor {
   private interpretFunction({
     value,
     children = [],
-  }: Function & { children?: ParseTree[] }): string | number {
+  }: Func & { children?: ParseTree[] }): string | number {
     return value === "concat"
       ? this.concat(...children)
       : value === "replace"
@@ -273,6 +280,9 @@ export class FormuleMagique {
     private readonly parsing: Parsing,
     private readonly interpretor: Interpretor
   ) {}
+  static init(): FormuleMagique {
+    return new FormuleMagique(new Parsing(), new Interpretor())
+  }
   validate(formula: Token[]): Status {
     try {
       this.parsing.do(formula);
@@ -282,14 +292,16 @@ export class FormuleMagique {
     } catch {
       return {
         isValid: false,
-        comment: "Empty formula is not valid",
+        comment: "Formula is not valid",
       };
     }
   }
   evaluate(
     formula: Token[],
-    context: Record<string, number | string>
+    context: Record<string, number | string> = {}
   ): number | string {
     return this.interpretor.evaluate(this.parsing.do(formula), context);
   }
 }
+
+export const formuleMagique = FormuleMagique.init()

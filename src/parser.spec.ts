@@ -1,9 +1,12 @@
 import { describe, expect, test } from "vitest";
 import {
+  constant,
+  func,
   Interpretor,
-  Operation,
   ParseTree,
   Parsing,
+  punctutation,
+  variable,
   type Token,
 } from "./parser";
 
@@ -330,19 +333,19 @@ describe("Parsing and interpreting", () => {
     });
     test("Concat variable and replace", () => {
       const formula: Token[] = [
-        { type: "function", value: "replace" },
-        { type: "punctuation", value: "(" },
-        { type: "function", value: "concat" },
-        { type: "punctuation", value: "(" },
-        { type: "variable", value: "a" },
-        { type: "punctuation", value: "," },
-        { type: "variable", value: "b" },
-        { type: "punctuation", value: ")" },
-        { type: "punctuation", value: "," },
-        { type: "constant", value: "Morceau" },
-        { type: "punctuation", value: "," },
-        { type: "constant", value: "Bout" },
-        { type: "punctuation", value: ")" },
+        func("replace"),
+        punctutation('('),
+        func("concat"),
+        punctutation('('),
+        variable('a'),
+        punctutation(","),
+        variable('b'),
+        punctutation(")"),
+        punctutation(','),
+        constant('Morceau'),
+        punctutation(","),
+        constant('Bout'),
+        punctutation(")")
       ];
       const parsed = new Parsing().do(formula);
       const context = { a: "Marabout, ", b: "Morceau de ficelle" };
