@@ -5,7 +5,7 @@ import {
   Interpretor,
   ParseTree,
   Parsing,
-  punctutation,
+  punctuation,
   variable,
   type Token,
 } from "./parser";
@@ -334,18 +334,18 @@ describe("Parsing and interpreting", () => {
     test("Concat variable and replace", () => {
       const formula: Token[] = [
         func("replace"),
-        punctutation('('),
+        punctuation('('),
         func("concat"),
-        punctutation('('),
+        punctuation('('),
         variable('a'),
-        punctutation(","),
+        punctuation(","),
         variable('b'),
-        punctutation(")"),
-        punctutation(','),
+        punctuation(")"),
+        punctuation(','),
         constant('Morceau'),
-        punctutation(","),
+        punctuation(","),
         constant('Bout'),
-        punctutation(")")
+        punctuation(")")
       ];
       const parsed = new Parsing().do(formula);
       const context = { a: "Marabout, ", b: "Morceau de ficelle" };

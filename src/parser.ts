@@ -27,7 +27,7 @@ export type ParseTree = Token & {
 
 export const constant = (value: Constant['value']): Constant => ({type: "constant", value})
 export const func = (value: Func['value']): Func => ({type: "function", value})
-export const punctutation = (value: Punctuation['value']): Punctuation => ({type: "punctuation", value})
+export const punctuation = (value: Punctuation['value']): Punctuation => ({type: "punctuation", value})
 export const operation = (value: Operation['value']): Operation => ({type: "operation", value})
 export const variable = (value: Variable['value']): Variable => ({type: "variable", value})
 
@@ -57,15 +57,12 @@ export class Parsing {
     }
     return tokens;
   }
-  // private isLeaf(token: Token): boolean {
-  //   return ["constant", "variable"].includes(token.type);
-  // }
   private parseOperation(tokens: ParseTree[]): ParseTree {
     const operationIndex = this.findOperationIndex(tokens);
+    const operation = tokens[operationIndex]!;
     const leftOperand = this.removeOutterParens(
       tokens.slice(0, operationIndex)
     );
-    const operation = tokens[operationIndex]!;
     const rightOperand = this.removeOutterParens(
       tokens.slice(operationIndex + 1, tokens.length)
     );
@@ -99,18 +96,18 @@ export class Parsing {
   }
   private splitArguments(tokens: Token[]): Token[][] {
     let parenLevel = 0;
-    const splittedTokens = [[]] as Token[][];
+    const splitTokens: Token[][] = [[]];
     for (const token of tokens) {
       if (token.type === "punctuation" && ["(", ")"].includes(token.value)) {
         parenLevel += token.value === "(" ? 1 : -1;
       }
       if (parenLevel === 0 && token.value === ",") {
-        splittedTokens.push([]);
+        splitTokens.push([]);
       } else {
-        splittedTokens.at(-1)?.push(token);
+        splitTokens.at(-1)?.push(token);
       }
     }
-    return splittedTokens;
+    return splitTokens;
   }
   private removeOutterParens(tokens: Token[]): Token[] {
     const openParenIndex = tokens.findIndex(({ value }) => value === "(");
@@ -276,23 +273,20 @@ type Status = {
 };
 
 export class FormuleMagique {
-  private constructor(
+  constructor(
     private readonly parsing: Parsing,
     private readonly interpretor: Interpretor
   ) {}
-  static init(): FormuleMagique {
-    return new FormuleMagique(new Parsing(), new Interpretor())
-  }
   validate(formula: Token[]): Status {
     try {
       this.parsing.do(formula);
       return {
         isValid: true,
       };
-    } catch {
+    } catch (error) {
       return {
         isValid: false,
-        comment: "Formula is not valid",
+        comment: (error as Error).message,
       };
     }
   }
@@ -304,4 +298,4 @@ export class FormuleMagique {
   }
 }
 
-export const formuleMagique = FormuleMagique.init()
+export const formuleMagique = new FormuleMagique(new Parsing(), new Interpretor())
