@@ -1,4 +1,4 @@
-import { enumerate } from "./utilities";
+import { enumerate, serializeWithKeys } from "./utilities";
 
 export type Token = Func | Constant | Punctuation | Operation | Variable;
 export type Func = {
@@ -25,20 +25,42 @@ export type ParseTree = Token & {
   children?: ParseTree[];
 };
 
-export const constant = (value: Constant['value']): Constant => ({type: "constant", value})
-export const func = (value: Func['value']): Func => ({type: "function", value})
-export const punctuation = (value: Punctuation['value']): Punctuation => ({type: "punctuation", value})
-export const operation = (value: Operation['value']): Operation => ({type: "operation", value})
-export const variable = (value: Variable['value']): Variable => ({type: "variable", value})
+export const constant = (value: Constant["value"]): Constant => ({
+  type: "constant",
+  value,
+});
+export const func = (value: Func["value"]): Func => ({
+  type: "function",
+  value,
+});
+export const punctuation = (value: Punctuation["value"]): Punctuation => ({
+  type: "punctuation",
+  value,
+});
+export const operation = (value: Operation["value"]): Operation => ({
+  type: "operation",
+  value,
+});
+export const variable = (value: Variable["value"]): Variable => ({
+  type: "variable",
+  value,
+});
 
+export const serializeTokens = (tokens: Token[]) =>
+  tokens.map((token) => serializeWithKeys(token, ["type", "value"])).join("");
 
 export class Parsing {
-  constructor() {}
+  private memo = new Map<string, ParseTree>();
   do(tokens: Token[]): ParseTree {
+    const key = serializeTokens(tokens)
+    if (this.memo.has(key)) {
+      return this.memo.get(key)!;
+    }
     const result = this.parse(tokens);
     if (result.length !== 1 || result[0] === undefined) {
       throw new Error("Parsing Error");
     }
+    this.memo.set(key, result[0]);
     return result[0];
   }
   private parse(tokens: ParseTree[]): ParseTree[] {
@@ -69,6 +91,14 @@ export class Parsing {
     if (!rightOperand.length || !leftOperand.length) {
       throw new Error(`Operations require two operands`);
     }
+    this.checkDivideByZero(operation, rightOperand);
+    operation.children = [
+      ...this.parse(leftOperand),
+      ...this.parse(rightOperand),
+    ];
+    return operation;
+  }
+  private checkDivideByZero(operation: Token, rightOperand: Token[]): void {
     if (
       operation.value === "/" &&
       rightOperand[0]?.type === "constant" &&
@@ -76,11 +106,6 @@ export class Parsing {
     ) {
       throw new Error("Division by zero is not allowed");
     }
-    operation.children = [
-      ...this.parse(leftOperand),
-      ...this.parse(rightOperand),
-    ];
-    return operation;
   }
   private parseFunction(tokens: ParseTree[]): ParseTree {
     const value = tokens[0]!.value as Func["value"];
@@ -298,4 +323,7 @@ export class FormuleMagique {
   }
 }
 
-export const formuleMagique = new FormuleMagique(new Parsing(), new Interpretor())
+export const formuleMagique = new FormuleMagique(
+  new Parsing(),
+  new Interpretor()
+);
