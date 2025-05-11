@@ -1,4 +1,4 @@
-import { enumerate, serializeWithKeys } from "./utilities";
+import { djb2, serializeWithKeys } from "./utilities";
 
 export type Token = Func | Constant | Punctuation | Operation | Variable;
 export type Func = {
@@ -46,13 +46,16 @@ export const variable = (value: Variable["value"]): Variable => ({
   value,
 });
 
-export const serializeTokens = (tokens: Token[]) =>
-  tokens.map((token) => serializeWithKeys(token, ["type", "value"])).join("");
+export const hashTokens = (tokens: Token[]) =>
+  djb2(
+    tokens.map((token) => serializeWithKeys(token, ["type", "value"])).join("")
+  );
 
 export class Parsing {
   private memo = new Map<string, ParseTree>();
+  constructor(private readonly functionCollection: FunctionCollection) {}
   do(tokens: Token[]): ParseTree {
-    const key = serializeTokens(tokens)
+    const key = hashTokens(tokens);
     if (this.memo.has(key)) {
       return this.memo.get(key)!;
     }
@@ -60,36 +63,33 @@ export class Parsing {
     if (result.length !== 1 || result[0] === undefined) {
       throw new Error("Parsing Error");
     }
-    this.memo.set(key, result[0]);
-    return result[0];
+    const response = result[0]
+    this.memo.set(key, response);
+    return response
   }
   private parse(tokens: ParseTree[]): ParseTree[] {
-    if (this.isOperation(tokens)) {
-      return [this.parseOperation(tokens)];
+    this.checkParenthesisParity(tokens);
+    const deparennedTokens = this.removeOutterParens(tokens);
+    if (this.isOperation(deparennedTokens)) {
+      return [this.parseOperation(deparennedTokens)];
     }
-    if (this.isFunction(tokens)) {
-      return [this.parseFunction(tokens)];
+    if (this.isFunction(deparennedTokens)) {
+      return [this.parseFunction(deparennedTokens)];
     }
-    // refactor
-    if (tokens[0]?.type === "constant" && tokens[1]?.type === "constant") {
+    if (
+      deparennedTokens[0]?.type === deparennedTokens[1]?.type
+    ) {
       throw new Error("Parsing Error");
     }
-    if (tokens[0]?.type === "constant" && tokens[1]?.type === "punctuation") {
-      throw new Error("Parsing Error");
-    }
-    return tokens;
+    return deparennedTokens;
   }
   private parseOperation(tokens: ParseTree[]): ParseTree {
     const operationIndex = this.findOperationIndex(tokens);
     const operation = tokens[operationIndex]!;
-    const leftOperand = this.removeOutterParens(
-      tokens.slice(0, operationIndex)
-    );
-    const rightOperand = this.removeOutterParens(
-      tokens.slice(operationIndex + 1, tokens.length)
-    );
+    const leftOperand = tokens.slice(0, operationIndex);
+    const rightOperand = tokens.slice(operationIndex + 1, tokens.length);
     if (!rightOperand.length || !leftOperand.length) {
-      throw new Error(`Operations require two operands`);
+      throw new Error(`Operation ${operation.value} require two operands`);
     }
     this.checkDivideByZero(operation, rightOperand);
     operation.children = [
@@ -109,13 +109,16 @@ export class Parsing {
   }
   private parseFunction(tokens: ParseTree[]): ParseTree {
     const value = tokens[0]!.value as Func["value"];
-    const functionArguments = this.removeOutterParens(tokens.slice(1));
+    if (!this.functionCollection.has(value)) {
+      throw new Error(`Function value does not exist`)
+    }
+    const functionArguments = tokens.slice(2, -1);
     const children = this.splitArguments(functionArguments).map(
       (tokens) => this.parse(tokens)[0]!
     );
+
     return {
-      type: "function",
-      value,
+      ...func(value),
       children,
     };
   }
@@ -135,17 +138,35 @@ export class Parsing {
     return splitTokens;
   }
   private removeOutterParens(tokens: Token[]): Token[] {
-    const openParenIndex = tokens.findIndex(({ value }) => value === "(");
-    const closeParenIndex = tokens.reduce(
-      (lastIndex, token, index) => (token.value === ")" ? index : lastIndex),
-      0
-    );
-    if (openParenIndex === -1 || closeParenIndex === -1) {
+    if (this.isOperation(tokens)) {
       return tokens;
     }
-    return tokens.filter(
-      (_, i) => i !== openParenIndex && i !== closeParenIndex
+    if (tokens.at(0)?.value === "(" && tokens.at(-1)?.value === ")") {
+      return tokens.slice(1, -1);
+    }
+    return tokens;
+  }
+  private checkParenthesisParity(tokens: Token[]): void {
+    const parity = tokens.reduce(
+      (count, { type, value }, index) =>
+        {
+          if (count < 0) {
+            throw new Error(`Excess of closing parenthesis at ${index - 1}`)
+          }
+          return (count +=
+            type !== "punctuation"
+              ? 0
+              : value === "("
+                ? 1
+                : value === ")"
+                  ? -1
+                  : 0);
+        },
+      0
     );
+    if (parity !== 0) {
+      throw new Error("Parenthesis mismatch");
+    }
   }
   private isOperation(tokens: Token[]): boolean {
     let parenLevel = 0;
@@ -161,27 +182,39 @@ export class Parsing {
   }
   private findOperationIndex(tokens: Token[]): number {
     let parenLevel = 0;
-    for (const [index, { value, type }] of enumerate(tokens)) {
-      if (type === "punctuation") {
-        parenLevel += value === "(" ? 1 : -1;
+    const operatorIndices = tokens.reduce(
+      (indices, { type, value }, index) => {
+        if (type === "punctuation") {
+          parenLevel += value === "(" ? 1 : -1;
+        }
+        if (parenLevel === 0 && type === "operation") {
+          indices[value] = indices[value] === -1 ? index : indices[value];
+        }
+        return indices;
+      },
+      {
+        "*": -1,
+        "+": -1,
+        "-": -1,
+        "/": -1,
       }
-      if (parenLevel === 0 && type === "operation") {
-        return index;
-      }
-    }
-    return -1;
+    );
+    return operatorIndices["+"] > -1
+      ? operatorIndices["+"]
+      : operatorIndices["-"] > -1
+      ? operatorIndices["-"]
+      : operatorIndices["/"] > -1
+      ? operatorIndices["/"]
+      : operatorIndices["*"];
   }
-
   private isFunction(tokens: Token[]): boolean {
-    if (this.isOperation(tokens)) {
-      return false;
-    }
-    return tokens.some(({ type }) => type === "function");
+    return tokens[0]?.type === "function";
   }
 }
 
-export class Interpretor {
+export class Evaluator {
   private context: Record<string, number | string> = {};
+  constructor(private readonly functionCollection: FunctionCollection) {}
   evaluate(
     parseTree: ParseTree,
     context: Record<string, number | string> = {}
@@ -191,21 +224,22 @@ export class Interpretor {
   }
   private execute(parseTree: ParseTree): number | string {
     return parseTree.type === "operation"
-      ? this.interpretOperation(parseTree)
+      ? this.evaluateOperation(parseTree)
       : parseTree.type === "function"
-      ? this.interpretFunction(parseTree)
+      ? this.evaluateFunction(parseTree)
       : parseTree.type === "constant"
-      ? this.interpretConstant(parseTree)
+      ? this.evaluateConstant(parseTree)
       : parseTree.type === "variable"
-      ? this.interpretVariable(parseTree)
+      ? this.evaluateVariable(parseTree)
       : "ERROR";
   }
-  private interpretConstant({
+  private evaluateConstant({
     value,
   }: Constant & { children?: ParseTree[] }): string | number {
+    // ajouter une erreur si !== string | numbe ??
     return value;
   }
-  private interpretVariable({
+  private evaluateVariable({
     value,
   }: Variable & { children?: ParseTree[] }): string | number {
     if (!Object.keys(this.context).includes(value)) {
@@ -220,19 +254,20 @@ export class Interpretor {
         )}`
       );
     }
+    // ajouter une erreur si !== string | numbe ??
     return this.context[value];
   }
-  private interpretFunction({
-    value,
+  private evaluateFunction({
+    value: functionName,
     children = [],
   }: Func & { children?: ParseTree[] }): string | number {
-    return value === "concat"
-      ? this.concat(...children)
-      : value === "replace"
-      ? this.replace(...children)
-      : "ERROR";
+    if (!this.functionCollection.hasWithArity(functionName, children.length)) {
+      throw new Error(`Unknown function ${functionName}`);
+    }
+    const args = children.map((token) => this.execute(token));
+    return this.functionCollection.call(functionName, args);
   }
-  private interpretOperation({
+  private evaluateOperation({
     value,
     children = [],
   }: Operation & { children?: ParseTree[] }): string | number {
@@ -250,25 +285,6 @@ export class Interpretor {
       : value === "*"
       ? this.multiply(leftOperand, rightOperand)
       : this.divide(leftOperand, rightOperand);
-  }
-  private replace(...args: ParseTree[]): string {
-    const [source, target, replacement] = args;
-    if (!source) {
-      throw new Error("Source is missing in function replace");
-    }
-    if (!target) {
-      throw new Error("Target is missing in function replace");
-    }
-    if (!replacement) {
-      throw new Error("Replacement is missing in function replace");
-    }
-    return `${this.execute(source)}`.replaceAll(
-      `${this.execute(target)}`,
-      `${this.execute(replacement)}`
-    );
-  }
-  private concat(...args: ParseTree[]): string {
-    return args.map((node) => this.execute(node)).join("");
   }
   private divide(leftOperand: ParseTree, rightOperand: ParseTree): number {
     return (
@@ -298,10 +314,12 @@ type Status = {
 };
 
 export class FormuleMagique {
-  constructor(
-    private readonly parsing: Parsing,
-    private readonly interpretor: Interpretor
-  ) {}
+  private readonly parsing: Parsing;
+  private readonly evaluator: Evaluator;
+  constructor(functionCollection: FunctionCollection) {
+    this.parsing = new Parsing(functionCollection);
+    this.evaluator = new Evaluator(functionCollection);
+  }
   validate(formula: Token[]): Status {
     try {
       this.parsing.do(formula);
@@ -315,15 +333,66 @@ export class FormuleMagique {
       };
     }
   }
+  parse(formula: Token[]): ParseTree {
+    return this.parsing.do(formula);
+  }
   evaluate(
-    formula: Token[],
+    formula: ParseTree,
     context: Record<string, number | string> = {}
   ): number | string {
-    return this.interpretor.evaluate(this.parsing.do(formula), context);
+    return this.evaluator.evaluate(formula, context);
   }
 }
 
-export const formuleMagique = new FormuleMagique(
-  new Parsing(),
-  new Interpretor()
-);
+type UsableFunc = (...args: (string | number)[]) => string | number;
+
+export class FunctionCollection {
+  private collection = new Map<string, UsableFunc>();
+  private arities = new Map<string, number>()
+  register(func: UsableFunc, arity: number): FunctionCollection {
+    this.collection.set(func.name, func);
+    this.arities.set(func.name, arity)
+    return this;
+  }
+  has(name: string): boolean {
+    return this.collection.has(name);
+  }
+  hasWithArity(name: string, arity: number): boolean {
+    return (
+      this.collection.has(name) && this.arities.get(name) === arity
+    );
+  }
+  call(name: string, args: (string | number)[]) {
+    if (!this.collection.has(name)) {
+      throw new Error(`Unknown function ${name}`);
+    }
+    const func = this.collection.get(name)!;
+    if (this.arities.get(name) !== args.length) {
+      throw new Error(
+        `Arity error: function ${func.name} requires ${func.length} arguments`
+      );
+    }
+    return func.apply(null, args);
+  }
+}
+
+export const functionCollection = new FunctionCollection()
+  .register(function replace(...args: (string | number)[]): string {
+    const [source, target, replacement] = args;
+    if (!source) {
+      throw new Error("Source is missing in function replace");
+    }
+    if (!target) {
+      throw new Error("Target is missing in function replace");
+    }
+    if (!replacement) {
+      throw new Error("Replacement is missing in function replace");
+    }
+    return `${source}`.replaceAll(`${target}`, `${replacement}`);
+  }, 3)
+  .register(function concat(...args: (number | string)[]): string {
+    return args.map((node) => node).join("");
+  }, 2);
+
+
+export const formuleMagique = new FormuleMagique(functionCollection);

@@ -32,10 +32,3 @@ formuleMagique.validate(formula) // { isValid: false, comment: "invalid operatio
 const context = {intro: "Hello, ", outro: "World !"}
 const result = formuleMagique.evaluate(formula, context)
 ```
-
-
-## TO DO
-- detection d'erreurs de parsing / validation d'input
-- applique priorité des operateurs * / et + - (avec ou sans parens) (* / - +)
-- register functions and operators aside (FunctionCatalogue ?)
-- memoize parser 
